@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FROHEN AI</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#061722;color:#eefaff;font-family:Arial,Helvetica,sans-serif;height:100vh}
+.app{height:100vh;display:flex}.side{width:245px;background:#081e2b;border-right:1px solid #1a4659;padding:20px;display:flex;flex-direction:column}
+.logo{font-size:24px;font-weight:900;color:#55c7ff;margin-bottom:22px}.logo span{color:#d5f7ff}
+.new{border:0;border-radius:12px;padding:13px;background:#36afeF;color:white;font-weight:800;cursor:pointer}.history{flex:1;overflow:auto;margin-top:15px}
+.history div{padding:9px;color:#a9c7d5;border-radius:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.foot{border-top:1px solid #173c4e;padding-top:14px;color:#7699aa;font-size:12px}.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.top{height:60px;border-bottom:1px solid #183e51;display:flex;align-items:center;justify-content:space-between;padding:0 22px}.title{font-weight:900}.status{font-size:12px;color:#61d2ff}
+.chat{flex:1;overflow:auto;padding:25px 7%}.msg{display:flex;gap:11px;margin-bottom:20px;max-width:900px}.msg.user{margin-left:auto;justify-content:flex-end}
+.avatar{width:38px;height:38px;min-width:38px;border-radius:12px;background:#48bdf4;display:grid;place-items:center;font-weight:900;font-size:11px}
+.bubble{background:#0d2c3c;border:1px solid #1c5268;border-radius:15px;padding:13px 17px;line-height:1.55;white-space:pre-wrap}.user .bubble{background:#2fa9e9;border-color:#45baf1;border-radius:15px 15px 5px 15px}
+.composer{padding:12px 6%;background:#061722}.box{max-width:920px;margin:auto;display:flex;gap:9px;background:#0b2939;border:1px solid #20566c;border-radius:17px;padding:8px}
+textarea{flex:1;height:45px;resize:none;background:transparent;border:0;outline:0;color:white;padding:11px;font:15px Arial}.send{width:48px;height:45px;border:0;border-radius:12px;background:#42baf2;color:white;font-size:20px;cursor:pointer}.hint{text-align:center;font-size:10px;color:#678b9b;margin-top:7px}
+@media(max-width:700px){.side{display:none}.chat{padding:18px 12px}.composer{padding:10px}.top{padding:0 14px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <div class="logo">✦ FROHEN <span>AI</span></div>
+  <button class="new" onclick="newChat()">＋ New Chat</button>
+  <div class="history" id="history"></div>
+  <div class="foot">Sky Blue Edition<br>Real model connection</div>
+</aside>
+<main class="main">
+<header class="top"><div class="title">FROHEN AI</div><div class="status">● Online</div></header>
+<section class="chat" id="chat"></section>
+<section class="composer">
+<div class="box"><textarea id="input" placeholder="Message FROHEN AI..." onkeydown="key(event)"></textarea><button class="send" onclick="send()">↑</button></div>
+<div class="hint">Enter to send • Shift + Enter for a new line</div>
+</section>
+</main>
+</div>
+<script>
+const chat=document.getElementById("chat"),input=document.getElementById("input"),historyBox=document.getElementById("history");
+let messages=JSON.parse(localStorage.getItem("frohen_real_messages")||"[]");
+
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+function render(){
+ chat.innerHTML="";
+ if(!messages.length) addLocal("Hello! I'm FROHEN AI. Ask me anything. 🩵","ai");
+ else messages.forEach(m=>addLocal(m.content,m.role));
+ renderHistory();
+}
+function addLocal(text,role){
+ const row=document.createElement("div");row.className="msg "+(role==="user"?"user":"ai");
+ row.innerHTML='<div class="avatar">'+(role==="user"?"YOU":"✦")+'</div><div class="bubble">'+esc(text)+'</div>';
+ chat.appendChild(row);chat.scrollTop=chat.scrollHeight;
+}
+function renderHistory(){
+ historyBox.innerHTML="";
+ messages.filter(m=>m.role==="user").slice(-15).forEach(m=>{let d=document.createElement("div");d.textContent=m.content;historyBox.appendChild(d)});
+}
+function save(){localStorage.setItem("frohen_real_messages",JSON.stringify(messages));}
+function newChat(){messages=[];save();render();}
+function key(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}}
+async function send(){
+ const text=input.value.trim(); if(!text)return;
+ messages.push({role:"user",content:text});save();render();input.value="";
+ const typing=document.createElement("div");typing.className="msg ai";typing.id="typing";
+ typing.innerHTML='<div class="avatar">✦</div><div class="bubble">Thinking…</div>';
+ chat.appendChild(typing);chat.scrollTop=chat.scrollHeight;
+ try{
+   const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages})});
+   const data=await r.json(); typing.remove();
+   if(!r.ok) throw new Error(data.error||"Request failed");
+   messages.push({role:"assistant",content:data.reply});save();render();
+ }catch(e){
+   typing.remove();
+   messages.push({role:"assistant",content:"Sorry, FROHEN AI couldn't reach the AI server right now.\n\n"+e.message});save();render();
+ }
+}
+render();
+</script>
+</body>
+</html>
